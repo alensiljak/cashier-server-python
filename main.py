@@ -5,27 +5,18 @@ FastAPI implementation
 """
 
 import base64
-from json import JSONEncoder
-import logging
 import subprocess
-from typing import Dict, Optional
-
+from typing import Optional
 import uvicorn
-from fastapi import FastAPI, Query, Response, status
+from loguru import logger
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger("cashier-server")
-
+# Create a FastAPI instance
 app = FastAPI(
     title="Cashier Server",
     description="Ledger-cli REST server for Cashier PWA",
-    version="0.1.0",
+    version="0.4.0",
 )
 
 # Configure CORS
