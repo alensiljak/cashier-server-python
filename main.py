@@ -63,7 +63,7 @@ async def ledger(command: Optional[str] = None):
             check=True,
         )
 
-        result = JSONEncoder().encode(process.stdout.splitlines())
+        result = process.stdout.splitlines()
         return result
     except subprocess.CalledProcessError as e:
         logger.error("Error executing ledger command: %s", e)
@@ -97,11 +97,10 @@ async def shutdown():
     logger.info("Shutdown requested")
 
     if hasattr(app.state, "server"):
-        # Schedule the server to stop
-        import asyncio
-        asyncio.create_task(app.state.server.shutdown())
-
-    return {"message": "Shutdown requested"}
+        app.state.server.should_exit = True
+        return {"message": "Server shut down"}
+    else:
+        return {"message": "Server not running"}
 
 
 def main():
