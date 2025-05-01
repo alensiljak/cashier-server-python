@@ -100,6 +100,13 @@ async def shutdown():
     return {"message": "Shutdown requested, but not implemented in this version"}
 
 
-if __name__ == "__main__":
+def main():
+    '''
+    Entry point for the executable script.
+    '''
     logger.info("Starting Cashier Server on 0.0.0.0:3000")
     uvicorn.run(app, host="0.0.0.0", port=3000)
+
+
+if __name__ == "__main__":
+    main()
