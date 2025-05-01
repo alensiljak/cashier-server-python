@@ -13,16 +13,15 @@ This is a Python implementation of the Cashier Server using FastAPI.
 2. Install `uv`
 
 ## Run
-Make sure that Ledger CLI is configured and can be called from the directory.
+
+Make sure that Ledger CLI is configured and can be called from the current directory.
 Then run:
 
 ```sh
+run.cmd
+# or
 uv run python app.py
-```
-
-Or using uvicorn directly:
-
-```sh
+# Or uvicorn directly:
 uvicorn app:app --host 0.0.0.0 --port 3000
 ```
 
@@ -35,10 +34,10 @@ uvicorn app:app --host 0.0.0.0 --port 3000
 
 ## Development
 
-Any Python IDE or editor (VSCode, PyCharm, etc.)
+VSCode recommended.
+Run the `run.cmd` script to start the server.
+Or run from VSCode to debug.
 
-
-## 8. Create a CHANGELOG.md file
 
 ```markdown:CHANGELOG.md
 # Changelog
@@ -64,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - `/` - For executing ledger commands
    - `/hello` - For returning a base64-encoded image
    - `/ping` - Simple health check
-   - `/shutdown` - For shutdown requests (note: actual shutdown implementation would need additional work in FastAPI)
+   - `/shutdown` - For shutdown requests
 
 2. CORS is enabled for all origins, similar to the Rust implementation.
 
@@ -73,17 +72,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 4. The server runs on 0.0.0.0:3000, matching the Rust implementation.
 
 5. For the `/hello` endpoint, you would need to provide an actual image file named "hello.png" in the same directory as the app.py file.
-
-6. The shutdown functionality is not fully implemented as it requires additional work in FastAPI/Uvicorn.
-
-To run the server, you would use:
-
-```bash
-uv run python app.py
-```
-
-Or with uvicorn directly:
-
-```bash
-uvicorn app:app --host 0.0.0.0 --port 3000
-```
