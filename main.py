@@ -5,6 +5,7 @@ FastAPI implementation
 """
 
 import base64
+from json import JSONEncoder
 import logging
 import subprocess
 from typing import Dict, Optional
@@ -62,11 +63,11 @@ async def ledger(command: Optional[str] = None):
             check=True,
         )
 
-        return process.stdout
+        result = JSONEncoder().encode(process.stdout.splitlines())
+        return result
     except subprocess.CalledProcessError as e:
         logger.error("Error executing ledger command: %s", e)
         return {"error": str(e), "stderr": e.stderr}
-
 
 @app.get("/hello")
 async def hello_img():
@@ -76,7 +77,7 @@ async def hello_img():
     # This is a placeholder - you would need to replace with your actual image
     with open("hello.png", "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-    
+
     return encoded_string
 
 
