@@ -61,9 +61,15 @@ async def ledger(command: Optional[str] = None):
             capture_output=True,
             text=True,
             check=True,
+            encoding="utf-8",
         )
 
-        result = process.stdout.splitlines()
+        if process.returncode == 0:
+            output = process.stdout
+        else:
+            output = process.stderr
+
+        result = output.splitlines()
         return result
     except subprocess.CalledProcessError as e:
         logger.error("Error executing ledger command: %s", e)
