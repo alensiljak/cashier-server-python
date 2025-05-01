@@ -38,7 +38,7 @@ app.add_middleware(
 
 
 @app.get("/")
-async def ledger(query: Optional[str] = None):
+async def ledger(command: Optional[str] = None):
     """
     Execute a ledger command and return the result.
     
@@ -48,26 +48,25 @@ async def ledger(query: Optional[str] = None):
     Returns:
         The result of the ledger command
     """
-    if not query:
+    if not command:
         return {"error": "No query provided"}
 
-    logger.info("Executing ledger command: %s", query)
-    
+    logger.info("Executing ledger command: %s", command)
+
     try:
         # Execute the ledger command
         process = subprocess.run(
-            ["ledger"] + query.split(),
+            ["ledger"] + command.split(),
             capture_output=True,
             text=True,
             check=True,
         )
-        
+
         return {"result": process.stdout}
     except subprocess.CalledProcessError as e:
-
-
         logger.error("Error executing ledger command: %s", e)
         return {"error": str(e), "stderr": e.stderr}
+
 
 @app.get("/hello")
 async def hello_img():
@@ -94,10 +93,14 @@ async def shutdown():
     """
     Shutdown the server.
     """
-    # Note: This doesn't actually work with FastAPI/Uvicorn out of the box
-    # You would need to implement a custom shutdown mechanism
     logger.info("Shutdown requested")
-    return {"message": "Shutdown requested, but not implemented in this version"}
+
+    if hasattr(app.state, "server"):
+        # Schedule the server to stop
+        import asyncio
+        asyncio.create_task(app.state.server.shutdown())
+
+    return {"message": "Shutdown requested"}
 
 
 def main():
@@ -105,7 +108,15 @@ def main():
     Entry point for the executable script.
     '''
     logger.info("Starting Cashier Server on 0.0.0.0:3000")
-    uvicorn.run(app, host="0.0.0.0", port=3000)
+    # Create a server instance that can be referenced
+    # uvicorn.run(app, host="0.0.0.0", port=3000)
+    config = uvicorn.Config(app, host="0.0.0.0", port=3000)
+    server = uvicorn.Server(config)
+
+    # Store the server instance in the app state
+    app.state.server = server
+    
+    server.run()
 
 
 if __name__ == "__main__":

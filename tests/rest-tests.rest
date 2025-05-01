@@ -2,6 +2,8 @@
 @server = http://localhost:3000
 
 ###
-GET {{server}}/?query=b gratis
+GET {{server}}/?command=b gratis
 ###
-
+# List accounts
+GET {{server}}/?command=b%20--flat%20--empty%20--no-total
+###
