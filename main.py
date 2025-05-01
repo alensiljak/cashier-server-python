@@ -62,7 +62,7 @@ async def ledger(command: Optional[str] = None):
             check=True,
         )
 
-        return {"result": process.stdout}
+        return process.stdout
     except subprocess.CalledProcessError as e:
         logger.error("Error executing ledger command: %s", e)
         return {"error": str(e), "stderr": e.stderr}
@@ -77,7 +77,7 @@ async def hello_img():
     with open("hello.png", "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
     
-    return {"image": encoded_string}
+    return encoded_string
 
 
 @app.get("/ping")
@@ -115,7 +115,7 @@ def main():
 
     # Store the server instance in the app state
     app.state.server = server
-    
+
     server.run()
 
 
