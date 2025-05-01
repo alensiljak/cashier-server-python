@@ -1,0 +1,7 @@
+# Test the endpoints.
+@server = http://localhost:3000
+
+###
+GET {{server}}/?query=b gratis
+###
+
