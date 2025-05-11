@@ -63,7 +63,7 @@ async def ledger(command: Optional[str] = None):
         result = output.splitlines()
         return result
     except subprocess.CalledProcessError as e:
-        logger.error("Error executing ledger command: %s", e)
+        logger.error("Error executing ledger command: {e}")
         return {"error": str(e), "stderr": e.stderr}
 
 @app.get("/hello")
