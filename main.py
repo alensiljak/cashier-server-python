@@ -92,6 +92,9 @@ async def beancount(command: Optional[str] = None):
     # df = pd.DataFrame(rows)
     # print(df)
 
+    # from beanquery.query import run_query
+    # result = run_query('.tables')
+
 @app.get("/hello")
 async def hello_img():
     """
