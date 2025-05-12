@@ -66,7 +66,7 @@ async def ledger(query: Optional[str] = None):
         logger.error(f"Error executing ledger command: {e}")
         return {"error": str(e), "stderr": e.stderr}
 
-async def beancount(command: Optional[str] = None):
+async def beancount(query: Optional[str] = None):
     """
     Execute a beancount query and return the result.
     Requires Beancount to be installed.
@@ -77,7 +77,7 @@ async def beancount(command: Optional[str] = None):
     Returns:
         The result of the beancount command
     """
-    if not command:
+    if not query:
         return {"error": "No query provided"}
 
     # from beancount import loader
