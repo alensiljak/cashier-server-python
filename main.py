@@ -43,7 +43,7 @@ async def ledger(command: Optional[str] = None):
     if not command:
         return {"error": "No query provided"}
 
-    logger.info("Executing ledger command: %s", command)
+    logger.info(f"Executing ledger command: {command}")
 
     try:
         # Execute the ledger command
@@ -63,7 +63,7 @@ async def ledger(command: Optional[str] = None):
         result = output.splitlines()
         return result
     except subprocess.CalledProcessError as e:
-        logger.error("Error executing ledger command: {e}")
+        logger.error(f"Error executing ledger command: {e}")
         return {"error": str(e), "stderr": e.stderr}
 
 @app.get("/hello")
