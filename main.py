@@ -30,7 +30,7 @@ app.add_middleware(
 
 
 @app.get("/")
-async def ledger(command: Optional[str] = None):
+async def ledger(query: Optional[str] = None):
     """
     Execute a ledger command and return the result.
     
@@ -40,15 +40,15 @@ async def ledger(command: Optional[str] = None):
     Returns:
         The result of the ledger command
     """
-    if not command:
+    if not query:
         return {"error": "No query provided"}
 
-    logger.info(f"Executing ledger command: {command}")
+    logger.info(f"Executing ledger query: {query}")
 
     try:
         # Execute the ledger command
         process = subprocess.run(
-            ["ledger"] + command.split(),
+            ["ledger"] + query.split(),
             capture_output=True,
             text=True,
             check=True,
@@ -66,6 +66,32 @@ async def ledger(command: Optional[str] = None):
         logger.error(f"Error executing ledger command: {e}")
         return {"error": str(e), "stderr": e.stderr}
 
+async def beancount(command: Optional[str] = None):
+    """
+    Execute a beancount query and return the result.
+    Requires Beancount to be installed.
+
+    Args:
+        query: The beancount command to execute
+
+    Returns:
+        The result of the beancount command
+    """
+    if not command:
+        return {"error": "No query provided"}
+
+    # from beancount import loader
+    # from beancount.query import query
+    # import pandas as pd
+
+    # # Load your Beancount file
+    # entries, errors, options_map = loader.load_file('yourfile.beancount')
+
+    # # Run the query
+    # row, rows = query.run(entries, options_map, command)
+    # df = pd.DataFrame(rows)
+    # print(df)
+
 @app.get("/hello")
 async def hello_img():
     """
@@ -77,14 +103,12 @@ async def hello_img():
 
     return encoded_string
 
-
 @app.get("/ping")
 async def ping():
     """
     Simple ping endpoint to check if the server is running.
     """
     return "pong"
-
 
 @app.get("/shutdown")
 async def shutdown():
