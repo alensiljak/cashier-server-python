@@ -5,6 +5,7 @@ FastAPI implementation
 """
 
 import base64
+import os
 import subprocess
 from typing import Optional
 import uvicorn
@@ -29,7 +30,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+# @app.get("/")
 async def ledger(query: Optional[str] = None):
     """
     Execute a ledger command and return the result.
@@ -66,6 +67,7 @@ async def ledger(query: Optional[str] = None):
         logger.error(f"Error executing ledger command: {e}")
         return {"error": str(e), "stderr": e.stderr}
 
+@app.get("/")
 async def beancount(query: Optional[str] = None):
     """
     Execute a beancount query and return the result.
@@ -80,12 +82,20 @@ async def beancount(query: Optional[str] = None):
     if not query:
         return {"error": "No query provided"}
 
-    # from beancount import loader
+    from beancount import loader
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    bean_file = os.getenv('BEAN_FILE')
+    if not bean_file:
+        raise ValueError("BEAN_FILE environment variable not set")
+
     # from beancount.query import query
     # import pandas as pd
 
-    # # Load your Beancount file
-    # entries, errors, options_map = loader.load_file('yourfile.beancount')
+    # todo: get the book file path.
+    # Load your Beancount file
+    entries, errors, options_map = loader.load_file(bean_file)
 
     # # Run the query
     # row, rows = query.run(entries, options_map, command)
@@ -94,6 +104,7 @@ async def beancount(query: Optional[str] = None):
 
     # from beanquery.query import run_query
     # result = run_query('.tables')
+    return entries
 
 @app.get("/hello")
 async def hello_img():

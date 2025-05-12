@@ -5,8 +5,11 @@ description = "Cashier synchronization server in Python"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "beancount>=3.1.0",
+    "beanquery>=0.2.0",
     "fastapi>=0.115.12",
     "loguru>=0.7.3",
+    "python-dotenv>=1.1.0",
     "uvicorn>=0.34.2",
 ]
 
