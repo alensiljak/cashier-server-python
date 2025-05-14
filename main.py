@@ -12,6 +12,11 @@ import uvicorn
 from loguru import logger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+
+load_dotenv()
+BEAN_FILE = os.getenv('BEAN_FILE')
 
 # Create a FastAPI instance
 app = FastAPI(
@@ -35,11 +40,7 @@ async def index(query: str | None = None):
     if not query:
         return {"error": "No query provided"}
 
-    from dotenv import load_dotenv
-
-    load_dotenv()
-    bean_file = os.getenv('BEAN_FILE')
-    if bean_file:
+    if BEAN_FILE:
         return await beancount(query)
     else:
         return await ledger(query)
@@ -90,27 +91,15 @@ async def beancount(query: Optional[str] = None):
     Returns:
         The result of the beancount command
     """
-    bean_file = os.getenv('BEAN_FILE')
-    if not bean_file:
-        raise ValueError("BEAN_FILE environment variable not set")
+    import beanquery
 
-    from beancount import loader
-    # from beancount.query import query
-    # import pandas as pd
+    logger.info(f"Executing beancount query: {query}")
 
-    # todo: get the book file path.
-    # Load your Beancount file
-    entries, errors, options_map = loader.load_file(bean_file)
+    connection = beanquery.connect('beancount:' +  BEAN_FILE)
+    cursor = connection.execute(query)
+    result = cursor.fetchall()
 
-    # Run the query
-    # row, rows = query.run(entries, options_map, query)
-    # logger.debug(f"Query result: {rows}")
-    # df = pd.DataFrame(rows)
-    # print(df)
-
-    # from beanquery.query import run_query
-    # result = run_query('.tables')
-    return entries
+    return result
 
 @app.get("/hello")
 async def hello_img():
