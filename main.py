@@ -57,7 +57,7 @@ async def ledger(query: Optional[str] = None):
     Returns:
         The result of the ledger command
     """
-    logger.info(f"Executing ledger query: {query}")
+    logger.info(f"Ledger query: {query}")
 
     try:
         # Execute the ledger command
@@ -93,7 +93,7 @@ async def beancount(query: Optional[str] = None):
     """
     import beanquery
 
-    logger.info(f"Executing beancount query: {query}")
+    logger.info(f"Beancount query: {query}")
 
     connection = beanquery.connect('beancount:' +  BEAN_FILE)
     cursor = connection.execute(query)
