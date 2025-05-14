@@ -29,6 +29,21 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+@app.get("/")
+async def index(query: str | None = None):
+    '''Index. Based on the settings, it uses Ledger or Beancount for data.'''
+    if not query:
+        return {"error": "No query provided"}
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    bean_file = os.getenv('BEAN_FILE')
+    if bean_file:
+        return await beancount(query)
+    else:
+        return await ledger(query)
+
 
 # @app.get("/")
 async def ledger(query: Optional[str] = None):
@@ -41,9 +56,6 @@ async def ledger(query: Optional[str] = None):
     Returns:
         The result of the ledger command
     """
-    if not query:
-        return {"error": "No query provided"}
-
     logger.info(f"Executing ledger query: {query}")
 
     try:
@@ -67,7 +79,6 @@ async def ledger(query: Optional[str] = None):
         logger.error(f"Error executing ledger command: {e}")
         return {"error": str(e), "stderr": e.stderr}
 
-@app.get("/")
 async def beancount(query: Optional[str] = None):
     """
     Execute a beancount query and return the result.
@@ -79,17 +90,11 @@ async def beancount(query: Optional[str] = None):
     Returns:
         The result of the beancount command
     """
-    if not query:
-        return {"error": "No query provided"}
-
-    from beancount import loader
-    from dotenv import load_dotenv
-
-    load_dotenv()
     bean_file = os.getenv('BEAN_FILE')
     if not bean_file:
         raise ValueError("BEAN_FILE environment variable not set")
 
+    from beancount import loader
     # from beancount.query import query
     # import pandas as pd
 
@@ -97,8 +102,9 @@ async def beancount(query: Optional[str] = None):
     # Load your Beancount file
     entries, errors, options_map = loader.load_file(bean_file)
 
-    # # Run the query
-    # row, rows = query.run(entries, options_map, command)
+    # Run the query
+    # row, rows = query.run(entries, options_map, query)
+    # logger.debug(f"Query result: {rows}")
     # df = pd.DataFrame(rows)
     # print(df)
 
