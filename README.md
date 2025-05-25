@@ -12,6 +12,10 @@ This is a Python implementation of the Cashier Server using FastAPI.
 1. Install `uv`
 2. Install `uv tool install cashier-server`
 
+## Configure Backend
+By default, Cashier Server will use Ledger.
+To use Beancount queries, create a BEAN_BOOK environment variable. The easiest way is to create an `.env` file containing this variable, which should point to your Beancount book.
+
 ## Run
 
 Execute `cashier-server-py` script provided by the `cashier-server` package.
