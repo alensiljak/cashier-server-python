@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
-BEAN_FILE = os.getenv('BEAN_FILE')
+BEAN_FILE = os.getenv("BEAN_FILE")
 
 # Create a FastAPI instance
 app = FastAPI(
@@ -34,9 +34,10 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+
 @app.get("/")
 async def index(query: str | None = None):
-    '''Index. Based on the settings, it uses Ledger or Beancount for data.'''
+    """Index. Based on the settings, it uses Ledger or Beancount for data."""
     if not query:
         return {"error": "No query provided"}
 
@@ -50,10 +51,10 @@ async def index(query: str | None = None):
 async def ledger(query: Optional[str] = None):
     """
     Execute a ledger command and return the result.
-    
+
     Args:
         query: The ledger command to execute
-        
+
     Returns:
         The result of the ledger command
     """
@@ -80,6 +81,7 @@ async def ledger(query: Optional[str] = None):
         logger.error(f"Error executing ledger command: {e}")
         return {"error": str(e), "stderr": e.stderr}
 
+
 async def beancount(query: Optional[str] = None):
     """
     Execute a beancount query and return the result.
@@ -95,11 +97,12 @@ async def beancount(query: Optional[str] = None):
 
     logger.info(f"Beancount query: {query}")
 
-    connection = beanquery.connect('beancount:' +  BEAN_FILE)
+    connection = beanquery.connect("beancount:" + BEAN_FILE)
     cursor = connection.execute(query)
     result = cursor.fetchall()
 
     return result
+
 
 @app.get("/hello")
 async def hello_img():
@@ -112,12 +115,14 @@ async def hello_img():
 
     return encoded_string
 
+
 @app.get("/ping")
 async def ping():
     """
     Simple ping endpoint to check if the server is running.
     """
     return "pong"
+
 
 @app.get("/shutdown")
 async def shutdown():
@@ -134,9 +139,9 @@ async def shutdown():
 
 
 def main():
-    '''
+    """
     Entry point for the executable script.
-    '''
+    """
     logger.info("Starting Cashier Server on 0.0.0.0:3000")
     # Create a server instance that can be referenced
     # uvicorn.run(app, host="0.0.0.0", port=3000)
