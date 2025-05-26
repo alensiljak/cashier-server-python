@@ -93,13 +93,32 @@ async def beancount(query: Optional[str] = None):
     Returns:
         The result of the beancount command
     """
+    import beancount
     import beanquery
+
+    if not BEAN_FILE:
+        raise ValueError("BEAN_FILE environment variable not set")
+    if not query:
+        return {"error": "No query provided"}
 
     logger.info(f"Beancount query: {query}")
 
     connection = beanquery.connect("beancount:" + BEAN_FILE)
     cursor = connection.execute(query)
     result = cursor.fetchall()
+
+    # convert Inventory objects (sets) into lists that are JSON-serializable.
+    for i, row in enumerate(result):
+        # Convert the row to a list
+        row_list = list(row)
+        # Iterate over the tuple values
+        for j, value in enumerate(row_list):
+            if isinstance(value, beancount.Inventory):
+                # Turn the Inventory into a simple list
+                value = list(value)
+                row_list[j] = value
+        # Convert the list back to a tuple and set it back into the result
+        result[i] = tuple(row_list)
 
     return result
 
