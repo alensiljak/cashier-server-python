@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 BEAN_FILE = os.getenv("BEANCOUNT_FILE")
+if BEAN_FILE:
+    logger.info(f"Using Beancount file: {BEAN_FILE}")
 
 # Create a FastAPI instance
 app = FastAPI(
