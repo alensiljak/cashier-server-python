@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
-BEAN_FILE = os.getenv("BEAN_FILE")
+BEAN_FILE = os.getenv("BEANCOUNT_FILE")
 
 # Create a FastAPI instance
 app = FastAPI(

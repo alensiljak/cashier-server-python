@@ -14,7 +14,8 @@ This is a Python implementation of the Cashier Server using FastAPI.
 
 ## Configure Backend
 
-To use Beancount as a back-end, set the BEAN_BOOK environment variable.
+To use Beancount as a back-end, set the `BEANCOUNT_FILE` environment variable.
+
 The easiest way is by creating an `.env` file containing this variable, 
 which should point to your Beancount book.
 Otherwise, Cashier Server will use Ledger as the backend.
