@@ -19,3 +19,6 @@ GET {{server}}/?query=SELECT account, sum(position) WHERE account ~ 'Assets:Fixe
 ###
 # Running Balance
 GET {{server}}/?query=select date, account, position, balance WHERE account ~ 'Assets:'
+###
+# Test handling Position conversion to JSON
+GET {{server}}/?query=select date, account, str(position), balance WHERE account ~ '^Assets:' LIMIT 10
