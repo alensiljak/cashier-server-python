@@ -17,8 +17,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 BEAN_FILE = os.getenv("BEANCOUNT_FILE")
-if BEAN_FILE:
-    logger.info(f"Using Beancount file: {BEAN_FILE}")
 
 # Create a FastAPI instance
 app = FastAPI(
@@ -84,6 +82,21 @@ async def ledger(query: Optional[str] = None):
         return {"error": str(e), "stderr": e.stderr}
 
 
+def preload_beancount_data():
+    """
+    Pre-load beancount data into memory.
+    """
+    import beanquery
+
+    if not BEAN_FILE:
+        raise ValueError("BEAN_FILE environment variable not set")
+
+    logger.info(f"Loading Beancount file: {BEAN_FILE}")
+
+    connection = beanquery.connect("beancount:" + BEAN_FILE)
+    return connection
+
+
 async def beancount(query: Optional[str] = None):
     """
     Execute a beancount query and return the result.
@@ -96,7 +109,7 @@ async def beancount(query: Optional[str] = None):
         The result of the beancount command
     """
     import beancount
-    import beanquery
+    # import beanquery
 
     if not BEAN_FILE:
         raise ValueError("BEAN_FILE environment variable not set")
@@ -105,7 +118,8 @@ async def beancount(query: Optional[str] = None):
 
     logger.info(f"Beancount query: {query}")
 
-    connection = beanquery.connect("beancount:" + BEAN_FILE)
+    # connection = beanquery.connect("beancount:" + BEAN_FILE)
+    connection = app.state.connection
     cursor = connection.execute(query)
     result = cursor.fetchall()
 
@@ -164,6 +178,12 @@ def main():
     Entry point for the executable script.
     """
     logger.info("Starting Cashier Server on 0.0.0.0:3000")
+
+    if BEAN_FILE:
+        # pre-load beancount data
+        connection = preload_beancount_data()
+        app.state.connection = connection
+
     # Create a server instance that can be referenced
     # uvicorn.run(app, host="0.0.0.0", port=3000)
     config = uvicorn.Config(app, host="0.0.0.0", port=3000)
