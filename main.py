@@ -139,6 +139,18 @@ async def beancount(query: Optional[str] = None):
     return result
 
 
+@app.get("/reload")
+def reload_beancount_data():
+    """
+    Reload the Beancount data.
+    """
+    import beanquery
+
+    logger.info("Reloading Beancount data")
+    assert BEAN_FILE
+    # Just recreate the connection.
+    app.state.connection = beanquery.connect("beancount:" + BEAN_FILE)
+
 @app.get("/hello")
 async def hello_img():
     """
@@ -181,8 +193,7 @@ def main():
 
     if BEAN_FILE:
         # pre-load beancount data
-        connection = preload_beancount_data()
-        app.state.connection = connection
+        app.state.connection = preload_beancount_data()
 
     # Create a server instance that can be referenced
     # uvicorn.run(app, host="0.0.0.0", port=3000)
