@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Cashier Server - Ledger-cli REST server for Cashier PWA
 FastAPI implementation
@@ -36,7 +35,7 @@ app.add_middleware(
 
 
 @app.get("/")
-async def index(query: str | None = None):
+async def index(query: Optional[str] = None):
     """Index. Based on the settings, it uses Ledger or Beancount for data."""
     if not query:
         return {"error": "No query provided"}
