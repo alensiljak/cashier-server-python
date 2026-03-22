@@ -28,11 +28,11 @@ def set_bean_file():
 
 
 class TestInfrastructureConfig:
-    """Tests for /infrastructure/config endpoint"""
+    """Tests for /infrastructure endpoint with config.bean"""
 
     def test_infrastructure_config_returns_config_file(self):
-        """Test that config endpoint returns the config.bean file content."""
-        response = client.get("/infrastructure/config")
+        """Test that infrastructure endpoint returns the config.bean file content."""
+        response = client.get("/infrastructure", params={"file_path": "config.bean"})
         assert response.status_code == 200
         result = response.json()
         assert "content" in result
@@ -45,8 +45,8 @@ class TestInfrastructureConfig:
         assert result["content"] == expected_content
 
     def test_infrastructure_config_returns_required_files(self):
-        """Test that config endpoint returns the required config.bean file."""
-        response = client.get("/infrastructure/config")
+        """Test that infrastructure endpoint returns the required config.bean file."""
+        response = client.get("/infrastructure", params={"file_path": "config.bean"})
         assert response.status_code == 200
         result = response.json()
         assert "content" in result
@@ -55,11 +55,11 @@ class TestInfrastructureConfig:
 
 
 class TestInfrastructureAccounts:
-    """Tests for /infrastructure/accounts endpoint"""
+    """Tests for /infrastructure endpoint with accounts.bean"""
 
     def test_infrastructure_accounts_returns_accounts_file(self):
-        """Test that accounts endpoint returns the accounts.bean file content."""
-        response = client.get("/infrastructure/accounts")
+        """Test that infrastructure endpoint returns the accounts.bean file content."""
+        response = client.get("/infrastructure", params={"file_path": "accounts.bean"})
         assert response.status_code == 200
         result = response.json()
         assert "content" in result
@@ -72,8 +72,8 @@ class TestInfrastructureAccounts:
         assert result["content"] == expected_content
 
     def test_infrastructure_accounts_returns_required_files(self):
-        """Test that accounts endpoint returns the required accounts.bean file."""
-        response = client.get("/infrastructure/accounts")
+        """Test that infrastructure endpoint returns the required accounts.bean file."""
+        response = client.get("/infrastructure", params={"file_path": "accounts.bean"})
         assert response.status_code == 200
         result = response.json()
         assert "content" in result
@@ -81,11 +81,11 @@ class TestInfrastructureAccounts:
 
 
 class TestInfrastructureCommodities:
-    """Tests for /infrastructure/commodities endpoint"""
+    """Tests for /infrastructure endpoint with commodities.bean"""
 
     def test_infrastructure_commodities_returns_commodities_file(self):
-        """Test that commodities endpoint returns the commodities.bean file content."""
-        response = client.get("/infrastructure/commodities")
+        """Test that infrastructure endpoint returns the commodities.bean file content."""
+        response = client.get("/infrastructure", params={"file_path": "commodities.bean"})
         assert response.status_code == 200
         result = response.json()
         assert "content" in result
@@ -98,8 +98,8 @@ class TestInfrastructureCommodities:
         assert result["content"] == expected_content
 
     def test_infrastructure_commodities_returns_required_files(self):
-        """Test that commodities endpoint returns the required commodities.bean file."""
-        response = client.get("/infrastructure/commodities")
+        """Test that infrastructure endpoint returns the required commodities.bean file."""
+        response = client.get("/infrastructure", params={"file_path": "commodities.bean"})
         assert response.status_code == 200
         result = response.json()
         assert "content" in result

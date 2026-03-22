@@ -23,7 +23,7 @@ CASHIER_SSL_CERT = os.getenv("CASHIER_SSL_CERT")
 app = FastAPI(
     title="Cashier Server",
     description="Ledger-cli REST server for Cashier PWA",
-    version="0.11.0",
+    version="0.13.0",
 )
 
 # Configure CORS
@@ -171,11 +171,17 @@ async def ping():
     """
     return "pong"
 
-@app.get("/infrastructure/config")
-async def infrastructure_config():
+@app.get("/infrastructure")
+async def infrastructure_file(file_path: str):
     """
-    Provides the Beancount config file.
+    Provides a Beancount infrastructure file.
     For use with RustLedger.
+    
+    Args:
+        file_path: The file path relative to the Beancount directory (e.g., "config.bean", "accounts.bean", "commodities.bean")
+    
+    Returns:
+        The content of the requested file
     """
     if not BEAN_FILE:
         raise ValueError("BEAN_FILE environment variable not set")
@@ -183,55 +189,12 @@ async def infrastructure_config():
     # Get the Beancount directory from BEAN_FILE
     beancount_dir = os.path.dirname(BEAN_FILE)
 
-    config_file = os.path.join(beancount_dir, "config.bean")
-    if not os.path.exists(config_file):
-        raise FileNotFoundError(f"Config file not found: {config_file}")
+    # Construct the full file path
+    full_file_path = os.path.join(beancount_dir, file_path)
+    if not os.path.exists(full_file_path):
+        raise FileNotFoundError(f"File not found: {full_file_path}")
 
-    with open(config_file, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    return {"content": content}
-
-
-@app.get("/infrastructure/accounts")
-async def infrastructure_accounts():
-    """
-    Provides Beancount accounts file.
-    For use with RustLedger.
-    """
-    if not BEAN_FILE:
-        raise ValueError("BEAN_FILE environment variable not set")
-
-    # Get the Beancount directory from BEAN_FILE
-    beancount_dir = os.path.dirname(BEAN_FILE)
-
-    accounts_file = os.path.join(beancount_dir, "accounts.bean")
-    if not os.path.exists(accounts_file):
-        raise FileNotFoundError(f"Accounts file not found: {accounts_file}")
-
-    with open(accounts_file, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    return {"content": content}
-
-
-@app.get("/infrastructure/commodities")
-async def infrastructure_commodities():
-    """
-    Provides Beancount commodities file.
-    For use with RustLedger.
-    """
-    if not BEAN_FILE:
-        raise ValueError("BEAN_FILE environment variable not set")
-
-    # Get the Beancount directory from BEAN_FILE
-    beancount_dir = os.path.dirname(BEAN_FILE)
-
-    commodities_file = os.path.join(beancount_dir, "commodities.bean")
-    if not os.path.exists(commodities_file):
-        raise FileNotFoundError(f"Commodities file not found: {commodities_file}")
-
-    with open(commodities_file, "r", encoding="utf-8") as f:
+    with open(full_file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     return {"content": content}
