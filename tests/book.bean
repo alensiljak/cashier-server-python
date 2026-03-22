@@ -1,5 +1,14 @@
 ; Sample beancount book for testing purposes.
 
+; plugins
+
+plugin "beancount.plugins.implicit_prices"
+plugin "beancount.plugins.close_tree"
+plugin "beancount.plugins.coherent_cost"
+plugin "beancount.plugins.currency_accounts" "Equity:Currency"
+
+; infrastructure
+
 include "config.bean"
 include "commodities.bean"
 include "accounts.bean"
