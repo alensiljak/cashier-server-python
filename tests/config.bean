@@ -1,0 +1,9 @@
+option "title" "Alen's Book"
+option "operating_currency" "EUR"
+
+; plugins
+
+plugin "beancount.plugins.implicit_prices"
+plugin "beancount.plugins.close_tree"
+plugin "beancount.plugins.coherent_cost"
+plugin "beancount.plugins.currency_accounts" "Equity:Currency"

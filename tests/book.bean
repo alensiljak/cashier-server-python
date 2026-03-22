@@ -1,0 +1,5 @@
+; Sample beancount book for testing purposes.
+
+include "config.bean"
+include "commodities.bean"
+include "accounts.bean"

@@ -171,6 +171,71 @@ async def ping():
     """
     return "pong"
 
+@app.get("/infrastructure/config")
+async def infrastructure_config():
+    """
+    Provides the Beancount config file.
+    For use with RustLedger.
+    """
+    if not BEAN_FILE:
+        raise ValueError("BEAN_FILE environment variable not set")
+
+    # Get the Beancount directory from BEAN_FILE
+    beancount_dir = os.path.dirname(BEAN_FILE)
+
+    config_file = os.path.join(beancount_dir, "config.bean")
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(f"Config file not found: {config_file}")
+
+    with open(config_file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return {"content": content}
+
+
+@app.get("/infrastructure/accounts")
+async def infrastructure_accounts():
+    """
+    Provides Beancount accounts file.
+    For use with RustLedger.
+    """
+    if not BEAN_FILE:
+        raise ValueError("BEAN_FILE environment variable not set")
+
+    # Get the Beancount directory from BEAN_FILE
+    beancount_dir = os.path.dirname(BEAN_FILE)
+
+    accounts_file = os.path.join(beancount_dir, "accounts.bean")
+    if not os.path.exists(accounts_file):
+        raise FileNotFoundError(f"Accounts file not found: {accounts_file}")
+
+    with open(accounts_file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return {"content": content}
+
+
+@app.get("/infrastructure/commodities")
+async def infrastructure_commodities():
+    """
+    Provides Beancount commodities file.
+    For use with RustLedger.
+    """
+    if not BEAN_FILE:
+        raise ValueError("BEAN_FILE environment variable not set")
+
+    # Get the Beancount directory from BEAN_FILE
+    beancount_dir = os.path.dirname(BEAN_FILE)
+
+    commodities_file = os.path.join(beancount_dir, "commodities.bean")
+    if not os.path.exists(commodities_file):
+        raise FileNotFoundError(f"Commodities file not found: {commodities_file}")
+
+    with open(commodities_file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return {"content": content}
+
 
 @app.get("/shutdown")
 async def shutdown():
