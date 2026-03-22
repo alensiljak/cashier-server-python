@@ -27,6 +27,12 @@ Create a self-signed certificate with OpenSSL.
 
 Add `CASHIER_SSL_KEY` and `CASHIER_SSL_CERT` paths to `.env` file, pointing to generated `key.pem` and `cert.pem`.
 
+### Android
+
+On Android, import the `cert.pem`. Usually Settings -> Security -> Install certificate -> CA Certificate.
+
+Then, open the Cashier Server URL in the browser and accept the self-signed certificate.
+
 ## Run
 
 Execute `cashier-server-py` script provided by the `cashier-server` package.

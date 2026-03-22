@@ -23,7 +23,7 @@ CASHIER_SSL_CERT = os.getenv("CASHIER_SSL_CERT")
 app = FastAPI(
     title="Cashier Server",
     description="Ledger-cli REST server for Cashier PWA",
-    version="0.4.0",
+    version="0.11.0",
 )
 
 # Configure CORS
