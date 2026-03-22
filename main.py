@@ -16,6 +16,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 BEAN_FILE = os.getenv("BEANCOUNT_FILE")
+CASHIER_SSL_KEY = os.getenv("CASHIER_SSL_KEY")
+CASHIER_SSL_CERT = os.getenv("CASHIER_SSL_CERT")
 
 # Create a FastAPI instance
 app = FastAPI(
@@ -196,7 +198,11 @@ def main():
 
     # Create a server instance that can be referenced
     # uvicorn.run(app, host="0.0.0.0", port=3000)
-    config = uvicorn.Config(app, host="0.0.0.0", port=3000)
+    ssl_kwargs = {}
+    if CASHIER_SSL_KEY and CASHIER_SSL_CERT:
+        ssl_kwargs = {"ssl_keyfile": CASHIER_SSL_KEY, "ssl_certfile": CASHIER_SSL_CERT}
+        logger.info(f"SSL enabled: key={CASHIER_SSL_KEY}, cert={CASHIER_SSL_CERT}")
+    config = uvicorn.Config(app, host="0.0.0.0", port=3000, **ssl_kwargs)
     server = uvicorn.Server(config)
 
     # Store the server instance in the app state

@@ -1,4 +1,5 @@
 # cashier-server-python
+
 Cashier synchronization server, in Python
 
 Ledger-cli REST server for [Cashier](https://github.com/alensiljak/cashier) PWA, implemented in Python with FastAPI.
@@ -19,6 +20,12 @@ To use Beancount as a back-end, set the `BEANCOUNT_FILE` environment variable.
 The easiest way is by creating an `.env` file containing this variable, 
 which should point to your Beancount book.
 Otherwise, Cashier Server will use Ledger as the backend.
+
+## Configure Certificates
+
+Create a self-signed certificate with OpenSSL.
+
+Add `CASHIER_SSL_KEY` and `CASHIER_SSL_CERT` paths to `.env` file, pointing to generated `key.pem` and `cert.pem`.
 
 ## Run
 
