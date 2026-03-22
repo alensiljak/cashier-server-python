@@ -1,6 +1,6 @@
 [project]
 name = "cashier-server"
-version = "0.11.0"
+version = "0.12.0"
 description = "Cashier synchronization server in Python"
 readme = "README.md"
 requires-python = ">=3.12"

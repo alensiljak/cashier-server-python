@@ -5,7 +5,6 @@ Test beancount methods
 import os
 import pytest
 import main
-from fastapi.testclient import TestClient
 
 
 # Get the directory of the test files

@@ -13,7 +13,7 @@ This is a Python implementation of the Cashier Server using FastAPI.
 1. Install `uv`
 2. Install `uv tool install cashier-server`
 
-## Configure Backend
+### Configure Backend
 
 To use Beancount as a back-end, set the `BEANCOUNT_FILE` environment variable.
 
@@ -21,13 +21,13 @@ The easiest way is by creating an `.env` file containing this variable,
 which should point to your Beancount book.
 Otherwise, Cashier Server will use Ledger as the backend.
 
-## Configure Certificates
+### Configure Certificates
 
 Create a self-signed certificate with OpenSSL.
 
 Add `CASHIER_SSL_KEY` and `CASHIER_SSL_CERT` paths to `.env` file, pointing to generated `key.pem` and `cert.pem`.
 
-### Android
+#### Android
 
 On Android, import the `cert.pem`. Usually Settings -> Security -> Install certificate -> CA Certificate.
 
@@ -44,7 +44,11 @@ The server runs on 0.0.0.0:3000, matching the Rust implementation.
 - `/` - Execute a ledger command
 - `/hello` - Return a base64-encoded image
 - `/ping` - Simple health check
+- `/reload` - Reload the Beancout data
 - `/shutdown` - Request server shutdown
+- `/infrastructure/config` - Return the Beancount config file content
+- `/infrastructure/accounts` - Return the Beancount accounts file content
+- `/infrastructure/commodities` - Return the Beancount commodities file content
 
 CORS is enabled for all origins, similar to the Rust implementation.
 
@@ -54,9 +58,9 @@ VSCode recommended.
 Run the `run.cmd` script to start the server.
 Or run from VSCode to debug.
 
-## Debug
+### Debug
 
-Make sure that Ledger CLI is configured and can be called from the current directory.
+Make sure that Beancount is configured and can be called from the current directory.
 Then run:
 
 ```sh
@@ -69,6 +73,5 @@ uvicorn app:app --host 0.0.0.0 --port 3000
 
 ## Notes on the Implementation
 
-3. Logging is configured to output to the console.
-
-5. For the `/hello` endpoint, you would need to provide an actual image file named "hello.png" in the same directory as the app.py file.
+- Logging is configured to output to the console.
+- For the `/hello` endpoint, you would need to provide an actual image file named "hello.png" in the same directory as the app.py file.
