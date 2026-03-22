@@ -1,5 +1,5 @@
 :: run cleanup
-@echo off
+::@echo off
 
 uv run clean.py
 
