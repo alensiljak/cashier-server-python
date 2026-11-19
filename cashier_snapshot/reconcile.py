@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import re
 
-from beancount.core import data
+from beancount.core import data, position
 from beancount.core.number import MISSING
 
 from .errors import SnapshotBuildError
 from .source_index import SourceBlock
-
 
 LOSSY_SOURCE_SYNTAX_RE = re.compile(r"(?:\s@@?\s|\{\{|\{[^\n}]*#)")
 
@@ -42,7 +41,7 @@ def _is_empty_cost_spec(cost) -> bool:
     text because no explicit cost semantics are erased.
     """
     return (
-        isinstance(cost, data.CostSpec)
+        isinstance(cost, position.CostSpec)
         and cost.number_per is MISSING
         and cost.number_total is None
         and cost.currency is MISSING
@@ -173,7 +172,5 @@ def classify_source_entries(
             f"{source_block.relative_path}:{source_block.lineno} "
             f"({type(source_block.entry).__name__})"
         )
-
-    return retained_indices, transformed_indices
 
     return retained_indices, transformed_indices

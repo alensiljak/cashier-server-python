@@ -1,59 +1,75 @@
 """
-Cashier Server - Ledger-cli REST server for Cashier PWA
+Cashier Server - Beancount synchronization server for Cashier PWA
 FastAPI implementation
 """
 
-import base64
 import hmac
 import os
-import subprocess
+import re
+import sys
+import threading
 from pathlib import Path
-from typing import Optional, List
-import uvicorn
-from loguru import logger
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from dotenv import load_dotenv
+from typing import Annotated
 
+import uvicorn
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
+from loguru import logger
+from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
+
+from cashier_snapshot.api_contract import (
+    BEARER_DEPENDENCIES,
+    HEALTH_RESPONSES,
+    PROTECTED_ERRORS,
+    SERVERS,
+    SNAPSHOT_DESCRIPTION,
+    SNAPSHOT_RESPONSES,
+    XACT_DESCRIPTION,
+    XACT_RESPONSES,
+    install_openapi_contract,
+)
+from cashier_snapshot.http_limits import RequestLimitsMiddleware
+
+_heavy_operations = threading.BoundedSemaphore(4)
+_HOST_RE = re.compile(r"(?:[A-Za-z0-9._-]+|\[[0-9A-Fa-f:.]+\])(?::[0-9]{1,5})?\Z")
+
+
+def run_heavy_operation(operation, *args):
+    if not _heavy_operations.acquire(blocking=False):
+        raise HTTPException(status_code=503, detail="Server is busy; retry later")
+    try:
+        return operation(*args)
+    finally:
+        _heavy_operations.release()
+
+# Exception traces must not copy ledger data or request locals into server logs.
+logger.configure(handlers=[{"sink": sys.stderr, "diagnose": False, "backtrace": False}])
 
 load_dotenv()
 BEAN_FILE = os.getenv("BEANCOUNT_FILE")
-CASHIER_SSL_KEY = os.getenv("CASHIER_SSL_KEY")
-CASHIER_SSL_CERT = os.getenv("CASHIER_SSL_CERT")
 CASHIER_API_TOKEN = os.getenv("CASHIER_" + "API_TOKEN", "").strip()
-CASHIER_ENABLE_SHUTDOWN = os.getenv("CASHIER_ENABLE_SHUTDOWN", "false").lower() in {"1", "true", "yes", "on"}
-CASHIER_CORS_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("CASHIER_CORS_ORIGINS", "*").split(",")
-    if origin.strip()
-]
 
 # Create a FastAPI instance
 app = FastAPI(
     title="Cashier Server",
-    description="Ledger-cli REST server for Cashier PWA",
-    version="0.13.0",
+    description="Beancount synchronization server for Cashier PWA",
+    version="0.14.0",
+    servers=SERVERS,
 )
-
-# Configure CORS. In production the app is expected to be served same-origin
-# through a reverse proxy, but keeping this configurable preserves local-dev
-# compatibility with the original server. Credentialed CORS cannot be used with
-# a wildcard origin, so credentials are only enabled for explicit origin lists.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CASHIER_CORS_ORIGINS if CASHIER_CORS_ORIGINS else ["*"],
-    allow_credentials="*" not in CASHIER_CORS_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+install_openapi_contract(app)
 
 
 @app.middleware("http")
 async def require_api_token(request: Request, call_next):
     """Require one deployment-scoped bearer token for application API routes."""
-    if request.method == "OPTIONS" or request.url.path == "/health":
+    hosts = request.headers.getlist("host")
+    if len(hosts) != 1 or _HOST_RE.fullmatch(hosts[0]) is None:
+        return JSONResponse(status_code=400, content={"detail": "Invalid Host header"})
+
+    # Never reconstruct the authentication path from the attacker-controlled Host.
+    if request.scope.get("path") == "/health":
         return await call_next(request)
 
     if not CASHIER_API_TOKEN:
@@ -68,7 +84,7 @@ async def require_api_token(request: Request, call_next):
         separator == " "
         and scheme.lower() == "bearer"
         and bool(token)
-        and hmac.compare_digest(token, CASHIER_API_TOKEN)
+        and hmac.compare_digest(token.encode("utf-8"), CASHIER_API_TOKEN.encode("utf-8"))
     )
     if not valid:
         return JSONResponse(
@@ -80,135 +96,24 @@ async def require_api_token(request: Request, call_next):
     return await call_next(request)
 
 
-@app.get("/")
-async def index(query: Optional[str] = None):
-    """Index. Based on the settings, it uses Ledger or Beancount for data."""
-    if not query:
-        return {"error": "No query provided"}
-
-    if BEAN_FILE:
-        return await beancount(query)
-    else:
-        return await ledger(query)
+# Outermost middleware: enforce body/query limits before authentication and JSON parsing.
+app.add_middleware(RequestLimitsMiddleware)
 
 
-# @app.get("/")
-async def ledger(query: Optional[str] = None):
-    """
-    Execute a ledger command and return the result.
 
-    Args:
-        query: The ledger command to execute
-
-    Returns:
-        The result of the ledger command
-    """
-    logger.info(f"Ledger query: {query}")
-
-    try:
-        # Execute the ledger command
-        process = subprocess.run(
-            ["ledger"] + query.split(),
-            capture_output=True,
-            text=True,
-            check=True,
-            encoding="utf-8",
-        )
-
-        if process.returncode == 0:
-            output = process.stdout
-        else:
-            output = process.stderr
-
-        result = output.splitlines()
-        return result
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error executing ledger command: {e}")
-        return {"error": str(e), "stderr": e.stderr}
-
-
-def preload_beancount_data():
-    """
-    Pre-load beancount data into memory.
-    """
-    import beanquery
-
-    if not BEAN_FILE:
-        raise ValueError("BEAN_FILE environment variable not set")
-
-    logger.info(f"Loading Beancount file: {BEAN_FILE}")
-
-    connection = beanquery.connect("beancount:" + BEAN_FILE)
-    return connection
-
-
-async def beancount(query: Optional[str] = None):
-    """
-    Execute a beancount query and return the result.
-    Requires Beancount to be installed.
-
-    Args:
-        query: The beancount command to execute
-
-    Returns:
-        The result of the beancount command
-    """
-    import beancount
-    # import beanquery
-
-    if not BEAN_FILE:
-        raise ValueError("BEAN_FILE environment variable not set")
-    if not query:
-        return {"error": "No query provided"}
-
-    logger.info(f"Beancount query: {query}")
-
-    # connection = beanquery.connect("beancount:" + BEAN_FILE)
-    connection = app.state.connection
-    cursor = connection.execute(query)
-    result = cursor.fetchall()
-
-    # convert Inventory objects (sets) into lists that are JSON-serializable.
-    for i, row in enumerate(result):
-        # Convert the row to a list
-        row_list = list(row)
-        # Iterate over the tuple values
-        for j, value in enumerate(row_list):
-            if isinstance(value, beancount.Inventory):
-                # Turn the Inventory into a simple list
-                value = list(value)
-                row_list[j] = value
-        # Convert the list back to a tuple and set it back into the result
-        result[i] = tuple(row_list)
-
-    return result
-
-
-@app.get("/reload")
-def reload_beancount_data():
-    """
-    Reload the Beancount data.
-    """
-    import beanquery
-
-    logger.info("Reloading Beancount data")
-    assert BEAN_FILE
-    # Just recreate the connection.
-    app.state.connection = beanquery.connect("beancount:" + BEAN_FILE)
-
-@app.get("/hello")
-async def hello_img():
-    """
-    Return a base64-encoded image.
-    """
-    # This is a placeholder - you would need to replace with your actual image
-    with open("hello.png", "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-
-    return encoded_string
-
-
-@app.get("/ping")
+@app.get(
+    "/ping",
+    summary="Authenticated liveness check",
+    description="Requires the deployment bearer token; returns the JSON string \"pong\".",
+    dependencies=BEARER_DEPENDENCIES,
+    response_model=None,
+    responses={
+        **PROTECTED_ERRORS,
+        200: {"description": "JSON string pong.", "content": {"application/json": {
+            "schema": {"type": "string", "const": "pong"}, "example": "pong",
+        }}},
+    },
+)
 async def ping():
     """
     Simple ping endpoint to check if the server is running.
@@ -216,61 +121,38 @@ async def ping():
     return "pong"
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Public lightweight health check",
+    description="No bearer token required. Reports whether BEANCOUNT_FILE is configured without reading or validating the ledger.",
+    response_model=None,
+    responses=HEALTH_RESPONSES,
+    openapi_extra={"security": []},
+)
 async def health():
     """Return a small health payload suitable for container health checks."""
-    # This endpoint is intentionally lightweight: it reports whether startup
-    # loaded Beancount data, but does not execute a query on every health probe.
     return {
         "ok": True,
         "beancount_file_configured": bool(BEAN_FILE),
-        "beancount_loaded": hasattr(app.state, "connection"),
     }
 
 
-def get_ledger_root() -> Path:
-    if not BEAN_FILE:
-        raise HTTPException(status_code=500, detail="BEANCOUNT_FILE environment variable not set")
-
-    return Path(BEAN_FILE).resolve().parent
-
 
 def reject_unsafe_infrastructure_path(file_path: str) -> Path:
+    if len(file_path) > 1024:
+        raise HTTPException(status_code=400, detail="File path exceeds length limit")
     if any(ord(char) < 32 for char in file_path):
         raise HTTPException(status_code=400, detail="Control characters are not allowed")
 
     requested_path = Path(file_path)
+    if not requested_path.parts:
+        raise HTTPException(status_code=404, detail="File not found")
     if requested_path.is_absolute():
         raise HTTPException(status_code=403, detail="Absolute paths are not allowed")
-    if ".." in requested_path.parts:
-        raise HTTPException(status_code=403, detail="Path traversal is not allowed")
+    if any(part.startswith(".") for part in requested_path.parts):
+        raise HTTPException(status_code=403, detail="Hidden paths and path traversal are not allowed")
 
     return requested_path
-
-
-def resolve_infrastructure_path(file_path: str) -> Path:
-    """Resolve an infrastructure path under the Beancount file directory.
-
-    Cashier PWA asks for files such as config.bean/accounts.bean relative to the
-    Beancount book. Do not allow absolute paths or ../ traversal outside the
-    ledger directory.
-    """
-    requested_path = reject_unsafe_infrastructure_path(file_path)
-    ledger_root = get_ledger_root()
-    resolved_path = (ledger_root / requested_path).resolve()
-
-    try:
-        resolved_path.relative_to(ledger_root)
-    except ValueError as exc:
-        raise HTTPException(status_code=403, detail="Path traversal is not allowed") from exc
-
-    return resolved_path
-
-
-def is_root_infrastructure_path(full_file_path: Path) -> bool:
-    if not BEAN_FILE:
-        return False
-    return full_file_path.resolve() == Path(BEAN_FILE).resolve()
 
 
 
@@ -307,122 +189,67 @@ def render_materialized_root_book() -> str:
         ) from exc
 
     logger.info(
-        "Built standalone PWA snapshot: retained={}, omitted_infrastructure={}, "
-        "consumed_operational={}, generated={}, transformed={}, bytes={}",
-        stats.retained,
-        stats.omitted_infrastructure,
-        stats.consumed_operational,
-        stats.generated,
-        stats.transformed,
-        len(content.encode("utf-8")),
+        f"Built standalone PWA snapshot: retained={stats.retained}, "
+        f"omitted_infrastructure={stats.omitted_infrastructure}, "
+        f"consumed_operational={stats.consumed_operational}, "
+        f"generated={stats.generated}, transformed={stats.transformed}, "
+        f"bytes={len(content.encode('utf-8'))}"
     )
     return content
 
 
-def is_glob_path(file_path: str) -> bool:
-    return any(char in file_path for char in "*?[")
-
-
-def read_infrastructure_glob(file_path: str):
-    """Return files matching a safe Beancount workspace glob."""
+def read_infrastructure_file(file_path: str):
+    """Return only the configured root snapshot, never client-selected source."""
     requested_path = reject_unsafe_infrastructure_path(file_path)
-    ledger_root = get_ledger_root()
-    files = []
-
-    try:
-        matched_paths = ledger_root.glob(requested_path.as_posix())
-        for matched_path in matched_paths:
-            if matched_path.is_symlink():
-                continue
-            resolved_path = matched_path.resolve()
-            try:
-                relative_path = resolved_path.relative_to(ledger_root)
-            except ValueError as exc:
-                raise HTTPException(status_code=403, detail="Path traversal is not allowed") from exc
-            if resolved_path.is_file():
-                files.append((relative_path.as_posix(), resolved_path))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid glob pattern: {file_path}") from exc
-
-    if not files:
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
-
-    return {
-        "files": [
-            {"path": path, "content": matched_path.read_text(encoding="utf-8")}
-            for path, matched_path in sorted(files)
-        ]
-    }
+    if not BEAN_FILE:
+        raise HTTPException(status_code=500, detail="BEANCOUNT_FILE environment variable not set")
+    if any(char in file_path for char in "*?[") or requested_path != Path(Path(BEAN_FILE).name):
+        raise HTTPException(status_code=403, detail="Only the configured root snapshot is available")
+    return {"content": render_materialized_root_book()}
 
 
-@app.get("/infrastructure")
-async def infrastructure_file(file_path: str):
-    """
-    Provides a Beancount infrastructure file.
-    For use with RustLedger.
-    
-    Args:
-        file_path: The file path relative to the Beancount directory (e.g., "config.bean", "accounts.bean", "commodities.bean")
-    
-    Returns:
-        The content of the requested file
-    """
-    if is_glob_path(file_path):
-        return read_infrastructure_glob(file_path)
+@app.get(
+    "/infrastructure",
+    summary="Export the configured root ledger snapshot",
+    description=SNAPSHOT_DESCRIPTION,
+    dependencies=BEARER_DEPENDENCIES,
+    response_model=None,
+    responses=SNAPSHOT_RESPONSES,
+)
+async def infrastructure_file(file_path: Annotated[str, Query(
+    description="Required configured BEANCOUNT_FILE basename only; no arbitrary file access.",
+    examples=["main.bean"],
+)]):
+    return await run_in_threadpool(run_heavy_operation, read_infrastructure_file, file_path)
 
-    full_file_path = resolve_infrastructure_path(file_path)
-    if not full_file_path.exists() or not full_file_path.is_file():
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
-
-    if is_root_infrastructure_path(full_file_path):
-        return {"content": render_materialized_root_book()}
-
-    with full_file_path.open("r", encoding="utf-8") as f:
-        content = f.read()
-
-    return {"content": content}
-
-
-@app.get("/shutdown")
-async def shutdown():
-    """
-    Shutdown the server.
-    """
-    logger.info("Shutdown requested")
-
-    if not CASHIER_ENABLE_SHUTDOWN:
-        raise HTTPException(status_code=403, detail="Shutdown endpoint is disabled")
-
-    if hasattr(app.state, "server"):
-        app.state.server.should_exit = True
-        return {"message": "Server shut down"}
-    else:
-        return {"message": "Server not running"}
-
-
-def refresh_beancount_connection():
-    """Reload the in-memory Beancount connection so subsequent queries see new data."""
-    import beanquery
-    assert BEAN_FILE
-    app.state.connection = beanquery.connect("beancount:" + BEAN_FILE)
-    logger.info("Beancount connection refreshed after writeback")
 
 
 class XactRequest(BaseModel):
-    transactions: List[str]
+    transactions: list[str] = Field(
+        max_length=100,
+        description="Up to 100 completed * Beancount transaction strings, each with stable cashier_id metadata.",
+    )
 
 
 class XactRejected(BaseModel):
-    cashier_id: Optional[str] = None
-    reason: str
+    cashier_id: str | None = Field(description="Null when no valid ID could be recovered.")
+    reason: str = Field(description="Concrete per-item validation or conflict reason.")
 
 
 class XactResponse(BaseModel):
-    synchronized: List[str]
-    rejected: List[XactRejected]
+    synchronized: list[str] = Field(description="Newly committed and already-equivalent cashier_ids.")
+    rejected: list[XactRejected] = Field(description="Per-item rejections; mixed batches still return HTTP 200.")
 
 
-@app.post("/xact")
+
+@app.post(
+    "/xact",
+    summary="Synchronize Cashier manual transactions",
+    description=XACT_DESCRIPTION,
+    dependencies=BEARER_DEPENDENCIES,
+    response_model=XactResponse,
+    responses=XACT_RESPONSES,
+)
 async def write_xact(request: XactRequest):
     """
     Accept Cashier-created manual transaction directives and append them to
@@ -433,8 +260,6 @@ async def write_xact(request: XactRequest):
 
     Returns synchronized cashier_ids and any rejections with reasons.
     """
-    from writeback import validate_and_commit
-
     manual_file = os.getenv("BEANCOUNT_MANUAL_TRANSACTIONS_FILE")
     if not manual_file:
         raise HTTPException(
@@ -442,8 +267,10 @@ async def write_xact(request: XactRequest):
             detail="BEANCOUNT_MANUAL_TRANSACTIONS_FILE is not configured",
         )
 
+    from writeback import validate_and_commit
+
     try:
-        result, wrote = validate_and_commit(request.transactions)
+        result, _wrote = await run_in_threadpool(run_heavy_operation, validate_and_commit, request.transactions)
     except OSError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except ValueError as exc:
@@ -451,11 +278,6 @@ async def write_xact(request: XactRequest):
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-    if wrote:
-        try:
-            refresh_beancount_connection()
-        except Exception as exc:
-            logger.warning("Beancount connection refresh failed after writeback: {}", exc)
 
     return XactResponse(
         synchronized=result["synchronized"],
@@ -475,22 +297,15 @@ def main():
 
     logger.info("Starting Cashier Server on 0.0.0.0:3000")
 
-    if BEAN_FILE:
-        # pre-load beancount data
-        app.state.connection = preload_beancount_data()
+    if not BEAN_FILE:
+        raise RuntimeError("BEANCOUNT_FILE must be configured")
 
-    # Create a server instance that can be referenced
-    # uvicorn.run(app, host="0.0.0.0", port=3000)
-    ssl_kwargs = {}
-    if CASHIER_SSL_KEY and CASHIER_SSL_CERT:
-        ssl_kwargs = {"ssl_keyfile": CASHIER_SSL_KEY, "ssl_certfile": CASHIER_SSL_CERT}
-        logger.info(f"SSL enabled: key={CASHIER_SSL_KEY}, cert={CASHIER_SSL_CERT}")
-    config = uvicorn.Config(app, host="0.0.0.0", port=3000, **ssl_kwargs)
+
+    config = uvicorn.Config(
+        app, host="0.0.0.0", port=3000,
+        limit_concurrency=64,
+    )
     server = uvicorn.Server(config)
-
-    # Store the server instance in the app state
-    app.state.server = server
-
     server.run()
 
 

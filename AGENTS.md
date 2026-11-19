@@ -13,36 +13,39 @@ Cashier Server Python is the API/server component for Cashier.
 
 ## Tools
 
-- Use ripgrep (`rg`) for fast text search across files.
+- Use ripgrep (`rg`) for text, configuration, and Beancount source searches.
+- Prefer Serena MCP or the IDE's Python LSP for symbols, definitions, and references.
+- For nontrivial cross-file changes, use GitNexus context/impact analysis when the index is available; refresh it after code changes. Treat empty, stale, partial, truncated, or `UNKNOWN` results as inconclusive and confirm with LSP/`rg` and tests.
+- Graph analysis does not prove dynamic Python plugin behavior, Beancount semantics, or the PWA/RustLedger boundary. Do not replace the relevant tests with graph checks.
+- Setup, pinned commands, and index maintenance are documented in `/docs/code-intelligence.md`. Index only this source repository, never the production ledger workspace. These tools are development-only, not server dependencies.
 
-## Architecture docs
+## Release policy
 
-- Current architecture docs are in `/docs/architecture/`.
-- Stage 1 source-preserving standalone PWA ledger snapshot is documented in `/docs/architecture/standalone-pwa-ledger-snapshot.md` and `/docs/architecture/standalone-pwa-ledger-implementation-plan.md`.
-- Stage 2 manual transaction writeback plan for code agents is `/docs/architecture/stage-2-manual-transaction-writeback.md`.
+- Read `/docs/releasing.md` before creating branches, changing versions, preparing releases, publishing, or deploying.
+- The owner selects `X.Y.Z`; work targets `releases/X.Y.Z`, not `main`. Keep `pyproject.toml`, the root `cashier-server` version in `uv.lock`, and the FastAPI version in `main.py` aligned.
+- Do not commit, push, merge, tag, publish, or deploy without the owner's corresponding request. Do not assign RC numbers manually.
+- Release automation lives in `.github/workflows/` and `scripts/release.mjs`; run the release regression tests before changing publication behavior. Final publication follows squash-merge of a same-repository release PR into `main`.
 
-## Stage 1 accepted boundary
+## Pull request descriptions
 
-Stage 1 is accepted in production:
+- Describe what changed, why it matters, related issues, and relevant behavior, compatibility, migration, or security consequences.
+- Never include routine validation reports: test counts, passed/skipped totals, check commands, lint/type-check results, CI status, build results, or audit scorecards. Those belong in CI logs and checks, not the PR description.
+- Never include conversation or agent narration, attribution such as "the user requested/said", or references to instructions and approvals.
+- Never list actions that were not performed, such as "not tested", "not committed", "not merged", "not deployed", or "no RC was published". Do not add administrative disclaimers about what the PR authorizes.
+- Keep the description focused on the resulting software. Explain actual product limitations and required migration steps directly rather than narrating the development process.
+
+## Ledger snapshot
+
+Read the relevant section of [`docs/architecture.md`](docs/architecture.md) before changing snapshot or writeback behavior. See [`docs/deployment.md`](docs/deployment.md) for operator setup.
 
 - `BEANCOUNT_FILE=/workspace/main.bean` points at the real Beancount root.
-- The server builds a source-preserving standalone snapshot for the PWA.
-- The PWA stores the snapshot in OPFS and parses it with `@rustledger/wasm@0.14.1` with `0` parse errors.
-- The ledger workspace is read-only for Stage 1.
+- The server builds a source-preserving standalone snapshot for the PWA. The PWA stores it in OPFS, and the acceptance test requires `@rustledger/wasm@0.14.1` to parse it with zero errors.
+- Keep the ledger workspace read-only; writeback is the single-file exception below.
+- Do not regress source preservation, Python plugin materialization, include/glob handling, or RustLedger boundary coverage.
 
-Do not regress source-preserving behavior, Python plugin materialization policy, include/glob handling, or RustLedger boundary tests when adding writeback.
+## Manual transaction writeback
 
-## Stage 2 manual transaction writeback
-
-Before implementing Stage 2 code, read `/docs/architecture/stage-2-manual-transaction-writeback.md`.
-
-Stage 2 adds exactly one narrow write channel:
-
-```http
-POST /api/xact
-```
-
-Depending on FastAPI routing, implement the app route as `/xact`; deployment exposes it under `/api/xact`.
+`POST /xact` (`POST /api/xact` behind the deployment proxy) is the only ledger write channel.
 
 The endpoint accepts only Cashier-created completed `*` transaction directives with stable `cashier_id` metadata. It writes only to the fixed configured file:
 
@@ -54,8 +57,8 @@ Deployment contract:
 
 ```yaml
 volumes:
-  - /mnt/raid4t/homelab/appdata/lazybean:/workspace:ro
-  - /mnt/raid4t/homelab/appdata/lazybean/manual_transactions.bean:/workspace/manual_transactions.bean:rw
+  - /path/to/ledger:/workspace:ro
+  - /path/to/ledger/manual_transactions.bean:/workspace/manual_transactions.bean:rw
 ```
 
 `main.bean` includes the file once:
@@ -72,7 +75,7 @@ Rules that code agents must follow:
 - Do not accept a target path from client input.
 - Do not implement a general Beancount mutation API.
 - Reject `include`, `plugin`, `option`, `open`, `close`, `balance`, `pad`, and any non-transaction directive in `/api/xact` payloads.
-- v1 accepts only completed `*` transactions, not incomplete `!` transactions.
+- Accept only completed `*` transactions, not incomplete `!` transactions.
 - Accounts must already exist in the server ledger; account creation from mobile is out of scope.
 - Use `cashier_id` for idempotency and deduplication.
 - Same `cashier_id` + same transaction means already synchronized; return it as synchronized without appending.

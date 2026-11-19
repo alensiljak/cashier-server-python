@@ -1,14 +1,13 @@
-# Test the endpoints.
+# Set api_token to the configured CASHIER_API_TOKEN in your REST client.
 @server = http://localhost:3000
 
-###
-GET {{server}}/?query=b gratis
-###
-# List accounts
-GET {{server}}/?query=b%20--flat%20--empty%20--no-total
-###
-# Shutdown
-GET {{server}}/shutdown
-###
-# Reload
-GET {{server}}/reload
+### Standalone snapshot (use the configured BEANCOUNT_FILE basename)
+GET {{server}}/infrastructure?file_path=main.bean
+Authorization: Bearer {{api_token}}
+
+### Ping
+GET {{server}}/ping
+Authorization: Bearer {{api_token}}
+
+### Health (no token required)
+GET {{server}}/health
